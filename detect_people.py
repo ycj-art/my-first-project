@@ -5,7 +5,7 @@ import cv2
 import requests
 from ultralytics import YOLO
 
-CHANNEL_ACCESS_TOKEN = "請換成你目前有效的 LINE Channel Access Token"
+CHANNEL_ACCESS_TOKEN = "yvmzrSgTQySLP3WeEN09ff02LrVjDlGU4i7yHUBFKKq/DD2Mj7Ehs+6zte2dpPb+7/k7h+7WMDpSIJ00PgngXjf4MRgLVetP3EmG94D+jnxA24XBtX+JpKd+YMDwearyBEKUIvOUN7nFrMT//UsrPwdB04t89/1O/w1cDnyilFU="
 TO_USER_ID = "U68643be81d1347c8fa43ef4706b378e3"
 
 model = YOLO("yolov8n.pt")
