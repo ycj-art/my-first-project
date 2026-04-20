@@ -27,7 +27,6 @@ no_person_timeout = 10
 last_save_time = 0.0
 last_line_time = 0.0
 last_seen_time = time.time()
-was_person_detected = False
 
 recording = False
 save_enabled = True
@@ -37,11 +36,17 @@ video_writer = None
 video_path = None
 
 window_name = "AI Monitor"
+
 screen_width = 1920
 screen_height = 1080
 
-cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
-cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+windowed_width = 960
+windowed_height = 540
+
+is_fullscreen = False
+
+cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+cv2.resizeWindow(window_name, windowed_width, windowed_height)
 
 def send_line_message(text):
     url = "https://api.line.me/v2/bot/message/push"
@@ -113,7 +118,6 @@ try:
 
             person_detected = True
             person_count += 1
-            was_person_detected = True
             last_seen_time = time.time()
 
             conf = float(box.conf[0])
@@ -148,40 +152,96 @@ try:
             if video_writer is not None:
                 video_writer.write(frame)
         else:
-            if video_writer is not None:
-                stop_recording()
+            stop_recording()
 
-        if was_person_detected and now - last_seen_time > no_person_timeout:
-            print("畫面已連續一段時間沒有人，自動關閉程式")
+        if now - last_seen_time > no_person_timeout:
+            print("畫面已一段時間沒有人，自動關閉")
             break
 
         overlay = frame.copy()
-        cv2.rectangle(overlay, (8, 8), (250, 155), (30, 30, 30), -1)
+        cv2.rectangle(overlay, (8, 8), (260, 170), (30, 30, 30), -1)
         frame = cv2.addWeighted(overlay, 0.25, frame, 0.75, 0)
 
-        cv2.putText(frame, f"Persons: {person_count}", (15, 28),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+        cv2.putText(
+            frame,
+            f"Persons: {person_count}",
+            (15, 28),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 255),
+            1
+        )
 
-        cv2.putText(frame, f"Rec: {'ON' if recording else 'OFF'}", (15, 48),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 255, 255), 1)
+        cv2.putText(
+            frame,
+            f"Rec: {'ON' if recording else 'OFF'}",
+            (15, 48),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.48,
+            (0, 255, 255),
+            1
+        )
 
-        cv2.putText(frame, f"Save: {'ON' if save_enabled else 'OFF'}", (15, 68),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 255, 0), 1)
+        cv2.putText(
+            frame,
+            f"Save: {'ON' if save_enabled else 'OFF'}",
+            (15, 68),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.48,
+            (255, 255, 0),
+            1
+        )
 
-        cv2.putText(frame, f"LINE: {'ON' if line_enabled else 'OFF'}", (15, 88),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 0, 255), 1)
+        cv2.putText(
+            frame,
+            f"LINE: {'ON' if line_enabled else 'OFF'}",
+            (15, 88),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.48,
+            (255, 0, 255),
+            1
+        )
 
-        cv2.putText(frame, f"Close: {no_person_timeout}s", (15, 108),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (220, 220, 220), 1)
+        cv2.putText(
+            frame,
+            f"[R] Rec  [S] Save",
+            (15, 110),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.42,
+            (220, 220, 220),
+            1
+        )
 
-        cv2.putText(frame, "[R] Rec  [S] Save", (15, 128),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (220, 220, 220), 1)
+        cv2.putText(
+            frame,
+            f"[L] LINE [F] Full",
+            (15, 130),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.42,
+            (220, 220, 220),
+            1
+        )
 
-        cv2.putText(frame, "[L] LINE [Q] Quit", (15, 146),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (220, 220, 220), 1)
+        cv2.putText(
+            frame,
+            f"[Q] Quit",
+            (15, 150),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.42,
+            (220, 220, 220),
+            1
+        )
 
-        display_frame = cv2.resize(frame, (screen_width, screen_height))
+        if is_fullscreen:
+            display_frame = cv2.resize(frame, (screen_width, screen_height))
+        else:
+            display_frame = frame
+
         cv2.imshow(window_name, display_frame)
+
+        if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
+            print("視窗已關閉")
+            break
 
         key = cv2.waitKey(1) & 0xFF
 
@@ -196,9 +256,24 @@ try:
         elif key == ord("l"):
             line_enabled = not line_enabled
             print(f"LINE 通知：{'開啟' if line_enabled else '關閉'}")
+        elif key == ord("f"):
+            is_fullscreen = not is_fullscreen
 
-        if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
-            break
+            if is_fullscreen:
+                cv2.setWindowProperty(
+                    window_name,
+                    cv2.WND_PROP_FULLSCREEN,
+                    cv2.WINDOW_FULLSCREEN
+                )
+                print("全螢幕模式")
+            else:
+                cv2.setWindowProperty(
+                    window_name,
+                    cv2.WND_PROP_FULLSCREEN,
+                    cv2.WINDOW_NORMAL
+                )
+                cv2.resizeWindow(window_name, windowed_width, windowed_height)
+                print("小視窗模式")
 
 finally:
     stop_recording()
